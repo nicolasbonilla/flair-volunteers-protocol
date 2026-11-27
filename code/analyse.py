@@ -17,7 +17,9 @@ import statistics_p1 as s
 
 TOOLS = ("FLAMeS", "LST-AI", "MindGlide", "WMH-SynthSeg", "SAMSEG")
 PRIMARY_TOOL = "FLAMeS"
-PRIMARY_COHORTS = ("Baycrest", "Leipzig", "NIMH", "GRAND")
+PRIMARY_COHORTS = ("Leipzig", "NIMH")
+NOT_PROCESSED = ("Baycrest",)     # protocol section 15, D1: the distributed FLAIR does not null the CSF; no rows expected
+MASKED_INPUT = ("GRAND",)         # protocol section 15, D3: distributed with every non-tissue voxel set to zero; reported apart
 SENSITIVITY = ("pattern_volume_rule", "pattern_generous_size", "pattern_any_size", "pattern_separate",
                "pattern_one_voxel_gap", "PV", "JC", "IT")
 SEED = 20261125
@@ -31,7 +33,8 @@ def read(path):
 
 def load(list_path, decisions_path, pan_path=None):
     """(people, decisions) after checking that every expected row is present exactly once."""
-    people = {(r["cohort"], r["person"], int(r["visit"])): r for r in read(list_path) if r["development"] == "0"}
+    people = {(r["cohort"], r["person"], int(r["visit"])): r for r in read(list_path)
+              if r["development"] == "0" and r["cohort"] not in NOT_PROCESSED}
     if pan_path:                                             # protocol section 9, step 2: the seeded PAN sample only
         sample = set()
         for line in open(pan_path, encoding="utf-8").read().splitlines():
@@ -117,9 +120,11 @@ def stability(people, decisions):
 def analyse(people, decisions):
     first = [k for k in people if k[2] == 1]
     young = [k for k in first if k[0] in PRIMARY_COHORTS and people[k]["age_group"] == "<50"]
-    older = [k for k in first if people[k]["age_group"] == ">=50"]
+    older = [k for k in first if k[0] not in MASKED_INPUT and people[k]["age_group"] == ">=50"]
+    masked_young = [k for k in first if k[0] in MASKED_INPUT and people[k]["age_group"] == "<50"]
+    masked_older = [k for k in first if k[0] in MASKED_INPUT and people[k]["age_group"] == ">=50"]
     cohorts = defaultdict(list)
-    for k in young + older:
+    for k in young + older + masked_young + masked_older:
         cohorts[f"{k[0]} {people[k]['age_group']}"].append(k)
     return {
         "primary": proportion(young, decisions, PRIMARY_TOOL),
@@ -131,13 +136,25 @@ def analyse(people, decisions):
         "agreement_50_or_more": agreement(older, decisions),
         "stability": stability(people, decisions),
         "sensitivity_under_50": {t: {c: proportion(young, decisions, t, c) for c in SENSITIVITY} for t in TOOLS},
+        "with_masked_input": {
+            "primary": proportion(young + masked_young, decisions, PRIMARY_TOOL),
+            "tools_under_50": {t: proportion(young + masked_young, decisions, t) for t in TOOLS},
+            "tools_50_or_more": {t: proportion(older + masked_older, decisions, t) for t in TOOLS}},
         "counts": {"first_visit": len(first), "under_50": len(young), "50_or_more": len(older),
-                   "in_neither": len(first) - len(young) - len(older)},
+                   "masked_input_under_50": len(masked_young), "masked_input_50_or_more": len(masked_older),
+                   "in_neither": len(first) - len(young) - len(older) - len(masked_young) - len(masked_older)},
     }
+
+
+def not_processed(list_path):
+    """People of the cohorts set aside by deviation D1, by age group (reported, never estimated)."""
+    return dict(sorted(Counter(f"{r['cohort']} {r['age_group'] or 'age not stated'}" for r in read(list_path)
+                               if r["development"] == "0" and r["cohort"] in NOT_PROCESSED).items()))
 
 
 if __name__ == "__main__":
     results = analyse(*load(sys.argv[1], sys.argv[2], sys.argv[4] if len(sys.argv) > 4 else None))
+    results["not_processed"] = not_processed(sys.argv[1])
     with open(sys.argv[3], "w", encoding="utf-8", newline="\n") as f:
         json.dump(results, f, indent=1)
         f.write("\n")

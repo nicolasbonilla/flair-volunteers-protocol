@@ -74,7 +74,7 @@ FLAMeS not reproduced: the study stops and that is reported. Another tool not re
 Each person of MSLesSeg has MS: nothing of this set enters the estimates.
 
 ## 6. Estimands (`analyse.py`, `statistics_p1.py`)
-**PRIMARY (one).** Proportion with the pattern, FLAMeS ensemble, 255 people under 50 (Baycrest, Leipzig, NIMH, GRAND), pooled with the exact interval (conservative when
+**PRIMARY (one).** Proportion with the pattern, FLAMeS ensemble, 255 people under 50 (Baycrest, Leipzig, NIMH, GRAND; since section 15: 154, Leipzig and NIMH), pooled with the exact interval (conservative when
 cohorts differ: Hoeffding 1956; checked exactly in the tests), each cohort shown.
 Margin 12%. Closest human reference in healthy volunteers, read in full: Gabelic 2014 (82 people without relatives with MS, mean 39.8 years, 3 T, 3-mm 2D FLAIR,
 lesions >=3 mm): 3 fulfilled the criterion with at least 2 regions; by its table 3 (4 people with juxtacortical, 7 periventricular, 0 infratentorial) at most 4 of 82 could have had 2 regions by location
@@ -134,3 +134,37 @@ Not submitted if: a fact of sections 3-6 cannot be verified; FLAMeS is not repro
   first development run (dev-1) was written as failed and nothing was computed. The CR is now removed when a line is read; dev-1 is kept as record.
 - `cloud/launch_study.sh`: an optional extra metadata field (used to switch on the HD-BET comparison of section 3 for the development people).
 - `work/OSF_registration_answers_DRAFT.md`: the answers for the registry form, brought in line with the above (not part of the protocol).
+
+## 15. Deviations caused by the development set (2026-11-27, after registration, before any study image was downloaded)
+The 30 development people (run dev-2) were checked as section 8 asks: per-scan rows, the visual montage of `code/qc_montage.py`
+(FLAIR, SynthSeg regions, marks of each tool) and the text sidecars. The automatic check of `cloud/run_all.sh` stopped the run before step 1
+because 9 of 30 scans failed the registration check. What was seen, and what changes:
+- **D1, Baycrest is not processed.** 6 of 6 Baycrest scans: ventricle to white matter 3.04-3.15. The montage shows correct registration
+  (labels on the ventricles) and bright CSF: the image does not null the CSF. Its sidecars (6 development people and 19 of the 152 study
+  people, every eighth, read 2026-11-27; text only) give TR 4 s and TI 2.5 s in every case ("Sag 3D SPACE FLAIR"); with TR 4 s the CSF null
+  is near 1.6 s, so at 2.5 s the CSF recovers. It is not the FLAIR contrast any of the five tools documents. Under section 6 every Baycrest
+  scan would only have been a failure of every tool. The 152 Baycrest people (76 under 50, 76 at 50 or more) are reported as not processed,
+  with this reason, and are in no estimate. Their tool outputs in the development set were seen (FLAMeS 5.5 mL, LST-AI 18.9 mL in one person,
+  marks along bright ventricle edges) and are not used.
+- **D2, registration limit 0.8 instead of 0.5.** 3 scans (NIMH sub-ON65403 0.594, NIMH sub-ON98602 0.604, PAN sub-HML0370 0.607) failed
+  at 0.5; the montages of ON65403 and HML0370 show correct registration with dark ventricles (small ventricles, flow signal inside them).
+  The 15 other passing scans outside GRAND: 0.20-0.49. A registration error puts the ventricle labels on tissue (about 1 or more); unnulled CSF gives about 3.
+  `scan_decide.py`: `REGISTRATION_LIMIT = 0.8`; test `test_registration_limit`.
+- **D3, GRAND is reported apart.** 6 of 6 GRAND scans: ventricle to white matter 0.0. The distributed FLAIR and T1w have every voxel outside
+  brain tissue set to zero (89% of the volume in sub-LTV, CSF of the ventricles and sulci included; same mask in both images); not stated
+  in its dataset description. No tool documents such input. GRAND is processed (cost about 9 USD) but the primary estimate and the
+  estimands at >=50 exclude it; `analyse.py` reports every estimate again with GRAND (`with_masked_input`), and GRAND by cohort. Its
+  development outputs were seen (pattern in 2 of 6 people with FLAMeS, 3 with LST-AI, 6 with MindGlide, which marked 35-45 mL in two
+  people, 3 with WMH-SynthSeg, 3 with SAMSEG): they are stated so the reader can judge the decision, which rests on the input, not on the outputs.
+- **Primary population now:** Leipzig and NIMH under 50, 154 people (81 + 73); with GRAND 179. Section 7 restated (exact, as before):
+  n=154: "below the margin" needs at most 10 positive people (6.5%), "above" at least 28 (18.2%); true 5%: 85% of studies end "below";
+  10%: 9% "below", none "above"; 15%: 16% "above"; 20%: 74% "above"; 25%: 98% "above". The study is now less precise than registered.
+  Secondary (5): age bands within PAN and GRAND.
+- Step 1 of section 9 is now Leipzig, NIMH and GRAND: 300 scans (`worklists/main.tsv`; the earlier list of 452 kept as
+  `worklists/main_before_D1.tsv`), about 0.55 machine-hours each, about 165 machine-hours, about 28 USD on Spot.
+- Development rows, montages and notes: `work/development_QC.md`. Tests: 103 with artificial data.
+- Operation only, no effect on any decision: `cloud/supervise.py` (relaunches a stopped Spot machine, within a cost limit),
+  `cloud/launch_study.sh` (relaunch of one shard; skips a machine that exists), `cloud/run_all.sh`, `cloud/run_main.sh`; reading only:
+  `code/qc_montage.py` (montages), `code/make_figures.py` (tables and figures from `results.json`).
+- Also seen in the development set: LST-AI with SynthStrip against its own HD-BET (section 3 check) differed in the pattern decision in
+  4 of 20 scans (details in `work/development_QC.md`); no change to the chain, reported as registered.

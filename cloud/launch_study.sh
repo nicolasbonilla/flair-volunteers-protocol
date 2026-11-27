@@ -6,7 +6,7 @@
 # The owner approves that figure before --go (feedback 2026-11-27: no cloud spend without his prior OK).
 # Project mstool-research only; isolated gcloud configuration; never the global one.
 set -euo pipefail
-RUN=$1; LIST=$2; N=$3; H=$4; GO=${5:-}
+RUN=$1; LIST=$2; N=$3; H=$4; GO=${5:-}; ONLY=${7:-}       # [--go --only <shard>]: relaunch one shard (supervise.py)
 export CLOUDSDK_CONFIG=C:/Users/Nicolas/.gcloud-mstool
 PROJECT=mstool-research; ZONES="us-central1-c us-central1-a us-central1-f"; MT=n2-highmem-4
 # Google Cloud catalog of 2026-11-27, us-central1: Spot N2 core 0.01896 USD/h, RAM 0.002542 USD/GiB-h; balanced disk 0.10 USD/GiB-month
@@ -17,7 +17,8 @@ echo "run=$RUN list=$LIST machines=$N x $MT Spot, at most $H h each, price $PRIC
 echo "WORST-CASE COST: $WORST USD (each machine deletes itself at the end or after $H h)"
 [ "$GO" = "--go" ] || { echo "plan only: nothing created"; exit 0; }
 cd "$(dirname "$0")"
-for i in $(seq 0 $((N-1))); do
+for i in $(if [ -n "$ONLY" ]; then echo "$ONLY"; else seq 0 $((N-1)); fi); do
+  if gcloud compute instances list --project=$PROJECT --filter="name=p1-$RUN-$i" --format="value(name)" | grep -q .; then echo "p1-$RUN-$i exists"; continue; fi
   for z in $ZONES; do
     if gcloud compute instances create "p1-$RUN-$i" --project=$PROJECT --zone=$z --machine-type=$MT \
         --provisioning-model=SPOT --instance-termination-action=DELETE --max-run-duration=${H}h \

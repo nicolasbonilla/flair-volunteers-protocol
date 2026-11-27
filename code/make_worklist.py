@@ -2,7 +2,8 @@
 
 Usage: python make_worklist.py <step> > list.tsv     step = development | main | pan:<n>
   development: the 30 development people (seeded in cohort.py), all cohorts
-  main:        every other person of Baycrest, Leipzig, NIMH and GRAND (step 1 of protocol section 9)
+  main:        every other person of Leipzig, NIMH and GRAND (step 1 of protocol section 9; Baycrest not processed, deviation D1
+               of section 15: its distributed FLAIR does not null the CSF)
   pan:<n>:     seeded age-stratified sample of n PAN people (n <= 300) with their second visits (step 2)
 Columns: scan_id, flair_url, t1_url, flair_check, t1_check ("sha256:<hex>" or "md5:<hex>", from the git-annex key of each file at
 the pinned commit in cohort_counts.json; Leipzig uses MD5 keys): file names only, no image is read. vm_scans.sh refuses a download that differs.
@@ -20,6 +21,7 @@ HERE = Path(__file__).parent
 S3 = "https://s3.amazonaws.com/openneuro.org"
 SEED = 20261125
 KEY = re.compile(r"(SHA256|MD5)E?-s\d+--([0-9a-f]{32,64})")
+NOT_PROCESSED = ("Baycrest",)        # protocol section 15, D1
 
 
 def git(*arguments):
@@ -50,7 +52,7 @@ def choose(rows, step):
     if step == "development":
         return [r for r in rows if r["development"] == "1"]
     if step == "main":
-        return [r for r in rows if r["development"] == "0" and r["cohort"] != "PAN"]
+        return [r for r in rows if r["development"] == "0" and r["cohort"] not in ("PAN", *NOT_PROCESSED)]
     n = int(step.split(":")[1])
     if not 0 < n <= 300:
         raise SystemExit("PAN sample: 1 to 300 people")

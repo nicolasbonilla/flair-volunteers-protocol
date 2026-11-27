@@ -138,7 +138,7 @@ def fake(tmp_path, change=lambda rows: rows):
     """90 people with known answers: every count below can be checked by hand."""
     people, rows = [], []
     for i in range(90):
-        name = ("Baycrest", "Leipzig", "PAN")[i // 30]
+        name = ("NIMH", "Leipzig", "PAN")[i // 30]
         group = ">=50" if name == "PAN" or i % 30 >= 20 else "<50"
         for visit in ((1, 2) if name == "PAN" and i % 30 < 10 else (1,)):
             people.append({"cohort": name, "person": f"sub-{i}", "visit": visit, "age_group": group, "development": 0})
@@ -166,7 +166,8 @@ def fast(monkeypatch):
 def test_known_answers(tmp_path):
     r = a.analyse(*fake(tmp_path))
     assert (r["primary"]["x"], r["primary"]["n"], r["primary"]["failed"]) == (8, 40, 0)
-    assert r["counts"] == {"first_visit": 90, "under_50": 40, "50_or_more": 50, "in_neither": 0}
+    assert r["counts"] == {"first_visit": 90, "under_50": 40, "50_or_more": 50, "masked_input_under_50": 0,
+                           "masked_input_50_or_more": 0, "in_neither": 0}
     assert {t: v["x"] for t, v in r["tools_under_50"].items()} == dict(zip(a.TOOLS, (8, 12, 8, 0, 8)))
     assert r["agreement_under_50"]["discordant"] == 12 and r["agreement_under_50"]["n"] == 40
     assert r["agreement_under_50"]["positive_tools"] == {0: 28, 1: 4, 4: 8}
@@ -195,7 +196,44 @@ def test_pan_person_under_50_is_in_neither_group(tmp_path):
     key = next(k for k in people if k[0] == "PAN" and k[2] == 1)
     people[key]["age_group"] = "<50"
     r = a.analyse(people, decisions)
-    assert r["counts"] == {"first_visit": 90, "under_50": 40, "50_or_more": 49, "in_neither": 1}
+    assert r["counts"] == {"first_visit": 90, "under_50": 40, "50_or_more": 49, "masked_input_under_50": 0,
+                           "masked_input_50_or_more": 0, "in_neither": 1}
+
+
+def test_deviations_baycrest_not_expected_and_grand_reported_apart(tmp_path):
+    """Section 15: Baycrest people need no rows and are only counted; GRAND rows count only in the masked-input block."""
+    fake(tmp_path)
+    decisions = list(csv.DictReader(open(tmp_path / "decisions.csv")))
+    decisions += [dict(r, cohort="GRAND", person=f"g-{r['person']}", pattern="1") for r in decisions
+                  if r["cohort"] == "NIMH" and r["person"] in ("sub-0", "sub-25")]
+    with open(tmp_path / "decisions.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, decisions[0])
+        w.writeheader()
+        w.writerows(decisions)
+    rows = list(csv.DictReader(open(tmp_path / "list.csv")))
+    rows += [dict(rows[0], cohort="GRAND", person="g-sub-0"), dict(rows[25], cohort="GRAND", person="g-sub-25"),
+             dict(rows[0], cohort="Baycrest", person="b-1"), dict(rows[0], cohort="Baycrest", person="b-2", age_group=">=50")]
+    with open(tmp_path / "list.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, rows[0])
+        w.writeheader()
+        w.writerows(rows)
+    r = a.analyse(*a.load(tmp_path / "list.csv", tmp_path / "decisions.csv"))
+    assert (r["primary"]["x"], r["primary"]["n"]) == (8, 40)
+    assert (r["with_masked_input"]["primary"]["x"], r["with_masked_input"]["primary"]["n"]) == (9, 41)
+    assert r["with_masked_input"]["tools_50_or_more"]["FLAMeS"]["n"] == 51
+    assert r["counts"]["masked_input_under_50"] == 1 and r["counts"]["masked_input_50_or_more"] == 1
+    assert "GRAND <50" in r["primary_by_cohort"] and not any(c.startswith("Baycrest") for c in r["primary_by_cohort"])
+    assert a.not_processed(tmp_path / "list.csv") == {"Baycrest <50": 1, "Baycrest >=50": 1}
+
+
+@pytest.mark.parametrize("ventricles,passed", [(10, True), (59, True), (79, True), (81, False), (100, False), (300, False)])
+def test_registration_limit(ventricles, passed):
+    """D2: correctly registered FLAIRs reached 0.61 in the development set; tissue gives about 1, unnulled CSF about 3."""
+    import scan_decide
+    labels = np.zeros((20, 20, 20), np.int16)
+    labels[2:12], labels[12:15] = 2, 4
+    flair = np.where(labels == 4, ventricles, 100).astype(np.float32)
+    assert scan_decide.registration_check(image(flair, kind=np.float32), image(labels))["passed"] is passed
 
 
 def test_failures_stay_visible(tmp_path):
@@ -261,3 +299,15 @@ def test_collate_rows_to_decisions(tmp_path, capsys):
     (rows / "Leipzig_sub-9_v1.jsonl").write_text(json.dumps({"scan": "Leipzig_sub-9_v1", "tool": "FLAMeS", **ok}) + "\n")
     with pytest.raises(SystemExit):                                     # one tool only
         collate.main(rows, [tmp_path / "w2.tsv"])
+
+
+def test_figures_and_tables_come_from_results_only(tmp_path):
+    import make_figures
+    r = a.analyse(*fake(tmp_path))
+    (tmp_path / "results.json").write_text(json.dumps(r))
+    make_figures.main(tmp_path / "results.json", tmp_path / "out")
+    rows = list(csv.reader(open(tmp_path / "out" / "table_tools.csv")))
+    flames = next(x for x in rows if x[:2] == ["<50", "FLAMeS"])
+    assert flames[2:6] == ["8", "40", "0", "20.0"]
+    for name in ("figure_tools.png", "figure_cohorts.pdf", "table_cohorts.csv", "table_agreement.csv"):
+        assert (tmp_path / "out" / name).stat().st_size > 0

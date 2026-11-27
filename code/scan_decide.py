@@ -21,18 +21,21 @@ MASKS = {"FLAMeS": "flames.nii.gz", "LST-AI": "lstai.nii.gz", "MindGlide": "mind
 EXTRA = {"LST-AI own HD-BET": "lstai_hdbet.nii.gz"}
 LABEL_OF = {"LST-AI own HD-BET": "LST-AI"}                            # same tool, other skull stripping
 WHITE_MATTER, VENTRICLES = (2, 41), (4, 43)
+REGISTRATION_LIMIT = 0.8              # protocol section 15, D2 (was 0.5)
 
 
 def registration_check(flair, labels):
-    """On FLAIR the lateral ventricles are dark: their median must be below half of the white matter's (both from the
-    labels moved onto the FLAIR grid). A wrong registration puts the ventricle labels on brain tissue."""
+    """On FLAIR the lateral ventricles are dark: their median must be below 0.8 of the white matter's (both from the
+    labels moved onto the FLAIR grid). A wrong registration puts the ventricle labels on brain tissue (ratio about 1 or
+    more); a FLAIR that does not null the CSF gives about 3. The limit was 0.5 until deviation D2 of protocol section 15:
+    in the development set 3 correctly registered FLAIRs with small ventricles or flow signal gave 0.59-0.61."""
     f = np.asanyarray(flair.dataobj).astype(np.float32)
     lab = np.asanyarray(labels.dataobj)
     wm, vent = f[np.isin(lab, WHITE_MATTER)], f[np.isin(lab, VENTRICLES)]
     if wm.size < 1000 or vent.size < 100:
         return {"passed": False, "reason": "too few white matter or ventricle voxels on the FLAIR grid"}
     ratio = float(np.median(vent) / np.median(wm)) if np.median(wm) > 0 else float("inf")
-    return {"passed": ratio < 0.5, "ventricle_to_white_matter": round(ratio, 3)}
+    return {"passed": ratio < REGISTRATION_LIMIT, "ventricle_to_white_matter": round(ratio, 3)}
 
 
 def main(folder, scan, extra=False):
