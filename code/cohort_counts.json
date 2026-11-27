@@ -1,0 +1,81 @@
+{
+ "PAN": {
+  "commit": "39e564cb11df36f3cca5f3c421b3e87d69a4acaa",
+  "people": 1124,
+  "table_rows": 1143,
+  "first_visit_age_group": {
+   ">=50": 1123,
+   "<50": 1
+  },
+  "after_development": {
+   ">=50": 1117,
+   "<50": 1
+  },
+  "two_visits": 105,
+  "first_visit_is_first_session": 1098
+ },
+ "Baycrest": {
+  "commit": "5690e4a22132ca79ff6d7e76b381f45f3309defd",
+  "people": 158,
+  "table_rows": 158,
+  "first_visit_age_group": {
+   ">=50": 78,
+   "<50": 80
+  },
+  "after_development": {
+   ">=50": 76,
+   "<50": 76
+  },
+  "two_visits": 0,
+  "first_visit_is_first_session": 158
+ },
+ "Leipzig": {
+  "commit": "7b2df1b81bdb37486a700fc99476e75a8c547284",
+  "people": 117,
+  "table_rows": 318,
+  "first_visit_age_group": {
+   "<50": 86,
+   ">=50": 29,
+   "not stated": 2
+  },
+  "after_development": {
+   "<50": 81,
+   ">=50": 28,
+   "not stated": 2
+  },
+  "two_visits": 0,
+  "first_visit_is_first_session": 117
+ },
+ "NIMH": {
+  "commit": "f6c800b5f9fb5990683c86d278cb3e944c93f8b0",
+  "people": 92,
+  "table_rows": 1859,
+  "first_visit_age_group": {
+   "<50": 79,
+   ">=50": 12,
+   "not stated": 1
+  },
+  "after_development": {
+   "<50": 73,
+   ">=50": 12,
+   "not stated": 1
+  },
+  "two_visits": 0,
+  "first_visit_is_first_session": 90
+ },
+ "GRAND": {
+  "commit": "d14ddc1d39d83aefca202f0150e7b79864c11381",
+  "people": 109,
+  "table_rows": 110,
+  "first_visit_age_group": {
+   ">=50": 83,
+   "<50": 26
+  },
+  "after_development": {
+   ">=50": 78,
+   "<50": 25
+  },
+  "two_visits": 0,
+  "first_visit_is_first_session": 109
+ }
+}
