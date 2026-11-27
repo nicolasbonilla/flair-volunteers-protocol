@@ -18,6 +18,9 @@ PRICE = 4 * 0.01896 + 32 * 0.002542 + 80 * 0.10 / 730          # USD per hour, S
 BUCKET = "mstool-research-data"
 ENV = {**os.environ, "CLOUDSDK_CONFIG": "C:/Users/Nicolas/.gcloud-mstool"}
 HERE = os.path.dirname(os.path.abspath(__file__))
+# On Windows a bare "bash" can resolve to the WSL launcher (System32), which has no Linux installed: use Git's bash.
+BASH = next((p for p in (os.environ.get("P1_BASH"), r"C:\Program Files\Git\bin\bash.exe") if p and os.path.exists(p)),
+            "bash") if os.name == "nt" else "bash"
 
 
 def gcloud(*args):
@@ -75,9 +78,12 @@ def main(run, list_path, machines, hours, budget, per_scan, extra=""):
                 launches[i] += 1
                 spent_worst += h * PRICE
                 print(f"launching shard {i} (launch {launches[i]}, {h} h, worst case so far {spent_worst:.2f} USD)", flush=True)
-                subprocess.run(["bash", os.path.join(HERE, "launch_study.sh"), run, f"gs://{BUCKET}/p1run/{run}/list.tsv",
-                                str(machines), str(h), "--go", "--only", str(i)],
-                               env={**ENV, "EXTRA_METADATA": extra}, shell=False)
+                launched = subprocess.run([BASH, os.path.join(HERE, "launch_study.sh"), run, f"gs://{BUCKET}/p1run/{run}/list.tsv",
+                                           str(machines), str(h), "--go", "--only", str(i)],
+                                          env={**ENV, "EXTRA_METADATA": extra}, shell=False)
+                if launched.returncode:                               # never count on a machine that was not created
+                    print(f"shard {i}: launch failed (code {launched.returncode}), stopping", flush=True)
+                    return 1
         time.sleep(600)
 
 
