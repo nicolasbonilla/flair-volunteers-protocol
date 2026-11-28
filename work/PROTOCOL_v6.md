@@ -166,5 +166,10 @@ because 9 of 30 scans failed the registration check. What was seen, and what cha
 - Operation only, no effect on any decision: `cloud/supervise.py` (relaunches a stopped Spot machine, within a cost limit),
   `cloud/launch_study.sh` (relaunch of one shard; skips a machine that exists), `cloud/run_all.sh`, `cloud/run_main.sh`; reading only:
   `code/qc_montage.py` (montages), `code/make_figures.py` (tables and figures from `results.json`).
+- 2026-11-28, during step 1 (run main-1, 57 of 300 scans done): two machines stopped working for 5 h because their 80 GB disk was full
+  (container images 53 GB, swap 16 GB, models and environment 7 GB) and MindGlide hung on a temporary file. No row was written for the
+  scan in progress, so no result was affected. The three machines were deleted and relaunched with a 120 GB disk, and every step of
+  `cloud/vm_scans.sh` now has a limit of 2 h (slowest step of 116 scans: 23 min); a step that runs out of time is a failure of that tool,
+  never a negative (section 6). The 57 finished scans were kept; the scans in progress are processed again from the start.
 - Also seen in the development set: LST-AI with SynthStrip against its own HD-BET (section 3 check) differed in the pattern decision in
   4 of 20 scans (details in `work/development_QC.md`); no change to the chain, reported as registered.

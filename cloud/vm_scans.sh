@@ -51,7 +51,12 @@ fs(){ docker run --rm --network=none -v /w/s:/work -v /w/lic/license.txt:/fs/lic
         -v /w/models:/fsmodels:ro -e OMP_NUM_THREADS=$TH --entrypoint /bin/bash "$FS" -c \
         "source \$FREESURFER_HOME/SetUpFreeSurfer.sh >/dev/null 2>&1; cp /fsmodels/WMH-SynthSeg_v10_231110.pth \$FREESURFER_HOME/models/; $1"; }
         # WMH-SynthSeg looks for its model in $FREESURFER_HOME/models (8.2.0-1 in this image): copied there in every run
-step(){ local s=$(date +%s); "$@"; local rc=$?; echo "STEP $SCAN $1 rc=$rc seconds=$(( $(date +%s) - s ))"; return $rc; }
+# At most 2 h per step (run main-1, 2026-11-28: the slowest step of 116 scans took 23 min; MindGlide hung for 5 h with the 80 GB disk
+# full). A step that runs out of time is a failure of that tool (no mask), never a negative; its container is stopped.
+export -f fs; export FS TH                     # timeout runs a new bash, which needs the fs function and its variables
+step(){ local s=$(date +%s); timeout --kill-after=60 7200 bash -c '"$@"' step "$@"; local rc=$?
+        [ $rc -eq 124 ] || [ $rc -eq 137 ] && { echo "STEP TIMEOUT $SCAN $1"; docker ps -q | xargs -r docker kill; }
+        echo "STEP $SCAN $1 rc=$rc seconds=$(( $(date +%s) - s ))"; return $rc; }
 # checksum promised by the pinned version ("sha256:<hex>" or "md5:<hex>")
 checked(){ local want=${2#*:}; [ -n "$want" ] || return 1; local got; got=$("${2%%:*}sum" "$1" | cut -c1-${#want}); [ "$got" = "$want" ]; }
 # a scan that cannot be read is a failure of every tool, never a negative, and never a missing row
