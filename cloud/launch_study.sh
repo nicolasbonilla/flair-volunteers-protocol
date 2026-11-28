@@ -10,8 +10,9 @@ RUN=$1; LIST=$2; N=$3; H=$4; GO=${5:-}; ONLY=${7:-}       # [--go --only <shard>
 export CLOUDSDK_CONFIG=C:/Users/Nicolas/.gcloud-mstool
 PROJECT=mstool-research; ZONES="us-central1-c us-central1-a us-central1-f"; MT=n2-highmem-4
 # Google Cloud catalog of 2026-11-27, us-central1: Spot N2 core 0.01896 USD/h, RAM 0.002542 USD/GiB-h; balanced disk 0.10 USD/GiB-month
-# Disk 120 GB since run main-1 (2026-11-28): images 53 GB + swap 16 GB + models and environment 7 GB left under 3 GB of 80 GB free.
-PRICE=$(python -c "print(round(4*0.01896 + 32*0.002542 + 120*0.10/730, 4))")
+# Since run main-1 (2026-11-28): disk 83 GB and swap 8 GB (images 53 GB + swap 16 GB + models and environment 7 GB had left under
+# 3 GB of 80 GB free; peak swap use seen 0.1 GB). 3 x 83 GB stays under the regional quota of 250 GB of SSD.
+PRICE=$(python -c "print(round(4*0.01896 + 32*0.002542 + 83*0.10/730, 4))")
 WORST=$(python -c "print(round($N*$H*$PRICE, 2))")
 [ "$N" -le 3 ] || { echo "at most 3 machines (CPU quota 12)"; exit 1; }
 echo "run=$RUN list=$LIST machines=$N x $MT Spot, at most $H h each, price $PRICE USD/h"
@@ -20,13 +21,15 @@ echo "WORST-CASE COST: $WORST USD (each machine deletes itself at the end or aft
 cd "$(dirname "$0")"
 for i in $(if [ -n "$ONLY" ]; then echo "$ONLY"; else seq 0 $((N-1)); fi); do
   if gcloud compute instances list --project=$PROJECT --filter="name=p1-$RUN-$i" --format="value(name)" | grep -q .; then echo "p1-$RUN-$i exists"; continue; fi
+  made=0
   for z in $ZONES; do
     if gcloud compute instances create "p1-$RUN-$i" --project=$PROJECT --zone=$z --machine-type=$MT \
         --provisioning-model=SPOT --instance-termination-action=DELETE --max-run-duration=${H}h \
-        --boot-disk-size=120GB --boot-disk-type=pd-balanced --image-family=debian-12 --image-project=debian-cloud \
+        --boot-disk-size=83GB --boot-disk-type=pd-balanced --image-family=debian-12 --image-project=debian-cloud \
         --service-account=mstool-runner@mstool-research.iam.gserviceaccount.com --scopes=cloud-platform \
         --metadata=list=$LIST,run=$RUN,shard=$i,shards=$N,threads=4${EXTRA_METADATA:+,$EXTRA_METADATA} --metadata-from-file=startup-script=vm_scans.sh \
-        --format="value(name,zone)"; then break; fi
+        --format="value(name,zone)"; then made=1; break; fi
   done
+  [ $made = 1 ] || { echo "p1-$RUN-$i: not created in any zone"; exit 1; }     # supervise.py stops on this (run main-1, quota)
 done
 # A Spot machine stopped by Google loses at most the scan in progress: run this again with the same arguments; finished scans are skipped.

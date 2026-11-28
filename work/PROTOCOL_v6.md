@@ -168,7 +168,8 @@ because 9 of 30 scans failed the registration check. What was seen, and what cha
   `code/qc_montage.py` (montages), `code/make_figures.py` (tables and figures from `results.json`).
 - 2026-11-28, during step 1 (run main-1, 57 of 300 scans done): two machines stopped working for 5 h because their 80 GB disk was full
   (container images 53 GB, swap 16 GB, models and environment 7 GB) and MindGlide hung on a temporary file. No row was written for the
-  scan in progress, so no result was affected. The three machines were deleted and relaunched with a 120 GB disk, and every step of
+  scan in progress, so no result was affected. The three machines were deleted and relaunched with an 83 GB disk and 8 GB of swap
+  (peak swap use seen 0.1 GB; 3 x 83 GB fits the regional quota of 250 GB, which refused 120 GB disks), and every step of
   `cloud/vm_scans.sh` now has a limit of 2 h (slowest step of 116 scans: 23 min); a step that runs out of time is a failure of that tool,
   never a negative (section 6). The 57 finished scans were kept; the scans in progress are processed again from the start.
 - Also seen in the development set: LST-AI with SynthStrip against its own HD-BET (section 3 check) differed in the pattern decision in

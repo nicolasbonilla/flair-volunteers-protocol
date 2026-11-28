@@ -28,7 +28,7 @@ mkdir -p /w/lic /w/models && cd /w
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq && apt-get install -y -qq docker.io unzip python3-venv 2>&1 | tail -1
 systemctl start docker
-fallocate -l 16G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile || true
+fallocate -l 8G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile || true
 for img in "$FS" "$LST" "$MG"; do for a in 1 2 3; do docker pull "$img" && break; sleep 30; done; docker image inspect "$img" > /dev/null || exit 1; done
 set +x
 gcloud storage cp "$BK/secrets/freesurfer/license.txt" /w/lic/license.txt --quiet && chmod 600 /w/lic/license.txt

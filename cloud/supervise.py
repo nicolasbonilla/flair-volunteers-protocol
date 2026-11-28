@@ -14,7 +14,7 @@ import time
 import urllib.request
 
 MAX_LAUNCHES = 3
-PRICE = 4 * 0.01896 + 32 * 0.002542 + 120 * 0.10 / 730         # USD per hour, Spot n2-highmem-4 + 120 GB disk, catalog 2026-11-27
+PRICE = 4 * 0.01896 + 32 * 0.002542 + 83 * 0.10 / 730          # USD per hour, Spot n2-highmem-4 + 83 GB disk, catalog 2026-11-27
 BUCKET = "mstool-research-data"
 ENV = {**os.environ, "CLOUDSDK_CONFIG": "C:/Users/Nicolas/.gcloud-mstool"}
 HERE = os.path.dirname(os.path.abspath(__file__))
