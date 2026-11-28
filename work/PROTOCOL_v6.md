@@ -174,3 +174,40 @@ because 9 of 30 scans failed the registration check. What was seen, and what cha
   never a negative (section 6). The 57 finished scans were kept; the scans in progress are processed again from the start.
 - Also seen in the development set: LST-AI with SynthStrip against its own HD-BET (section 3 check) differed in the pattern decision in
   4 of 20 scans (details in `work/development_QC.md`); no change to the chain, reported as registered.
+
+## 16. Added analyses, exploratory (written 2026-11-28, during step 1, before any estimate was computed)
+**What had been seen when this was written:** the 30 development people (section 15); in the machine logs of step 1, the printed rows
+of 2 study people (Leipzig sub-010254 and sub-010232); the count of finished scans (67 of 300). No study row had been collated, counted or
+analysed. Sections 1-15 are unchanged: the primary estimand, its margin and its reading stay as registered. Everything below is
+**exploratory**, labelled so in every table, and never replaces a registered result. Code: `code/guarantee.py`, frozen and timestamped
+with this section before step 1 ends; tests with artificial data (`code/test_guarantee.py`, 8; 111 in all). Literature checked on 2026-11-28 (PubMed, Europe PMC, arXiv; abstracts for
+most items): no study found that measures how often these tools meet the brain pattern in healthy volunteers, and no study found that applies
+a distribution-free guarantee to a patient-level MS decision; stated as "not found", never as "first" (section 6).
+
+**E1. A guarantee on the pattern in healthy people, and whether it travels.** For each tool, the only setting changed is the smallest
+lesion counted: largest extent lambda in {3, 4, 5, 6, 7, 8, 10, 12, 15} mm (extent as in section 4; regions and every other rule unchanged).
+R(lambda) = proportion of healthy people with the pattern. Target alpha = 5% of people, with probability at least 90% (delta = 0.10).
+Learn-then-Test (Angelopoulos, Bates et al., arXiv 2110.01052), fixed sequence from 15 mm down: at each lambda the exact binomial
+p-value of "R(lambda) >= 5%" (P[Bin(n, 0.05) <= k]); continue while p <= 0.10; lambda* = the last setting passed, or "no setting reaches the
+guarantee". Transfer, the question of interest: (a) calibrate on one cohort, apply lambda* to each other cohort (Leipzig, NIMH, PAN; GRAND
+apart, as in D3); (b) calibrate under 50, apply at 50 or more, and the reverse. Reported per tool: lambda*, the held-out proportion with
+its exact interval, and whether it is above 5%. A guarantee that does not travel between cohorts or ages is a result, not a failure.
+**Price in people with MS:** the proportion of the 53 MSLesSeg people (first visit; section 5 data) who still meet the pattern at lambda*,
+for the tools reproduced there (FLAMeS, LST-AI, SAMSEG), with SynthSeg on their T1w for the regions (one added cloud step, cost stated
+before it runs). Known before: the author's earlier manuscript reported the pattern in MSLesSeg with other settings (section 2).
+
+**E2. Agreement between tools as a safeguard.** A FLAMeS component of at least 3 mm is "confirmed" when at least m of the other tools
+that completed mark at least one of its voxels (m = 1, 2, 3). Pattern computed on confirmed components only. Reported per m: proportion of
+healthy people with the pattern, and the same in MSLesSeg (m = 1, 2 with LST-AI and SAMSEG, the tools reproduced there).
+
+**E3. New marks between two visits without disease.** In the PAN people with two visits: the second FLAIR is registered rigidly to the
+first (`mri_coreg`, FreeSurfer 8.2.0, the same container; one added cloud step, cost stated before it runs) and each tool's second-visit
+mask is moved with nearest neighbour. A "new mark" = a second-visit component of at least 3 mm with no voxel within one voxel of the
+first-visit mask. Reported per tool: people with at least one new mark, and the number per person. Never called false or new disease: no
+one has read these images; the interval and the scanner software may differ (section 6, secondary 4). Descriptive only (about 29 people).
+
+**E4. The 2024 McDonald criteria.** Read on 2026-11-28 in the open full text of Solomon et al., Neurology 2026 (PMC13528897, table 1;
+the Lancet Neurology articles of 2025, PMID 40975101 and 40975102, only as abstracts): at 50 years or more, or with vascular risk factors,
+the brain pattern is not enough; CSF-restricted oligoclonal bands, a kappa free light chain index of at least 6.1, the central vein sign
+(Select 6) or at least one spinal cord lesion is also asked. Every result at 50 or more is reported with this sentence; to be checked against
+the Lancet text before submission.
